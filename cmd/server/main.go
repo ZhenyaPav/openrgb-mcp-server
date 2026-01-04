@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/theankitbhardwaj/openrgb-mcp-server/internal/app"
 	"github.com/theankitbhardwaj/openrgb-mcp-server/internal/mcp"
@@ -28,7 +29,7 @@ func main() {
 
 	defer client.Close()
 
-	svc := app.NewService(client)
+	svc := app.NewService(client, time.Duration(cfg.OpenRGB.TimeoutMS)*time.Millisecond)
 
 	mcpServer := mcp.NewServer(cfg.Server.Name, cfg.Server.Version)
 

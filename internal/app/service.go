@@ -3,22 +3,29 @@ package app
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/theankitbhardwaj/openrgb-mcp-server/internal/openrgb"
 )
 
 type Service struct {
 	rgbClient *openrgb.Client
+	timeout   time.Duration
 }
 
-func NewService(rgbClient *openrgb.Client) *Service {
+func NewService(rgbClient *openrgb.Client, timeout time.Duration) *Service {
 	return &Service{
 		rgbClient: rgbClient,
+		timeout:   timeout,
 	}
 }
 
 func (s *Service) ListDevices(ctx context.Context) ([]openrgb.DeviceInfo, error) {
-	return s.rgbClient.ListDeviceInfos()
+	ctx, cancel := s.withTimeout(ctx)
+	if cancel != nil {
+		defer cancel()
+	}
+	return s.rgbClient.ListDeviceInfosCtx(ctx)
 }
 
 func (s *Service) SetDeviceColor(ctx context.Context, deviceID int, r, g, b int) error {
@@ -26,22 +33,34 @@ func (s *Service) SetDeviceColor(ctx context.Context, deviceID int, r, g, b int)
 		return err
 	}
 
-	deviceInfo, err := s.rgbClient.GetDeviceInfo(deviceID)
+	ctx, cancel := s.withTimeout(ctx)
+	if cancel != nil {
+		defer cancel()
+	}
+	deviceInfo, err := s.rgbClient.GetDeviceInfoCtx(ctx, deviceID)
 	if err != nil {
 		return err
 	}
-	return s.rgbClient.SetDeviceColor(*deviceInfo, r, g, b)
+	return s.rgbClient.SetDeviceColorCtx(ctx, *deviceInfo, r, g, b)
 }
 
 func (s *Service) SetAllDevicesColor(ctx context.Context, r, g, b int) error {
 	if err := validateRGB(r, g, b); err != nil {
 		return err
 	}
-	return s.rgbClient.SetAllDeviceColor(r, g, b)
+	ctx, cancel := s.withTimeout(ctx)
+	if cancel != nil {
+		defer cancel()
+	}
+	return s.rgbClient.SetAllDeviceColorCtx(ctx, r, g, b)
 }
 
 func (s *Service) ListProfiles(ctx context.Context) ([]openrgb.Profile, error) {
-	profiles, err := s.rgbClient.ListProfiles()
+	ctx, cancel := s.withTimeout(ctx)
+	if cancel != nil {
+		defer cancel()
+	}
+	profiles, err := s.rgbClient.ListProfilesCtx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -52,5 +71,17 @@ func (s *Service) SetProfile(ctx context.Context, profileName string) error {
 	if profileName == "" {
 		return fmt.Errorf("profile name cannot be empty")
 	}
-	return s.rgbClient.SetProfile(profileName)
+	ctx, cancel := s.withTimeout(ctx)
+	if cancel != nil {
+		defer cancel()
+	}
+	return s.rgbClient.SetProfileCtx(ctx, profileName)
+}
+
+func (s *Service) withTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	if s.timeout <= 0 {
+		return ctx, nil
+	}
+	timeoutCtx, cancel := context.WithTimeout(ctx, s.timeout)
+	return timeoutCtx, cancel
 }

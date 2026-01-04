@@ -1,11 +1,16 @@
 package openrgb
 
 import (
+	"context"
 	"fmt"
 )
 
 func (c *Client) ListDeviceInfos() ([]DeviceInfo, error) {
-	cntResp, err := c.c.RequestControllerCount()
+	return c.ListDeviceInfosCtx(context.Background())
+}
+
+func (c *Client) ListDeviceInfosCtx(ctx context.Context) ([]DeviceInfo, error) {
+	cntResp, err := c.c.RequestControllerCountCtx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -14,7 +19,7 @@ func (c *Client) ListDeviceInfos() ([]DeviceInfo, error) {
 	var devices []DeviceInfo
 
 	for i := 0; i < int(count); i++ {
-		ctrlRsp, err := c.c.RequestControllerData(uint32(i))
+		ctrlRsp, err := c.c.RequestControllerDataCtx(ctx, uint32(i))
 		if err != nil {
 			fmt.Printf("Failed to get controller %d: %v", i, err)
 			continue
@@ -40,7 +45,11 @@ func (c *Client) ListDeviceInfos() ([]DeviceInfo, error) {
 }
 
 func (c *Client) GetDeviceInfo(deviceId int) (*DeviceInfo, error) {
-	ctrlRsp, err := c.c.RequestControllerData(uint32(deviceId))
+	return c.GetDeviceInfoCtx(context.Background(), deviceId)
+}
+
+func (c *Client) GetDeviceInfoCtx(ctx context.Context, deviceId int) (*DeviceInfo, error) {
+	ctrlRsp, err := c.c.RequestControllerDataCtx(ctx, uint32(deviceId))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get controller %d: %w", deviceId, err)
 	}

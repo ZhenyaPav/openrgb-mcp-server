@@ -4,3 +4,4 @@ server:
 openrgb:
   host: "localhost"
   port: 6742
+  timeout_ms: 2000

@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/theankitbhardwaj/openrgb-mcp-server/internal/app"
@@ -42,7 +43,11 @@ func handleListDevices(svc *app.Service) mcp.ToolHandlerFor[ListDevicesParams, [
 		// Call the service to list devices
 		devices, err := svc.ListDevices(ctx)
 		if err != nil {
-			return nil, err
+			log.Printf("list_devices failed: %v", err)
+			return &mcp.CallToolResultFor[[]openrgb.DeviceInfo]{
+				Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Error listing devices: %v", err)}},
+				IsError: true,
+			}, nil
 		}
 
 		return &mcp.CallToolResultFor[[]openrgb.DeviceInfo]{
@@ -56,7 +61,11 @@ func handleSetDeviceColor(svc *app.Service) mcp.ToolHandlerFor[SetDeviceColorPar
 	return func(ctx context.Context, ss *mcp.ServerSession, params *mcp.CallToolParamsFor[SetDeviceColorParams]) (*mcp.CallToolResultFor[string], error) {
 		err := svc.SetDeviceColor(ctx, params.Arguments.DeviceID, params.Arguments.R, params.Arguments.G, params.Arguments.B)
 		if err != nil {
-			return nil, fmt.Errorf("failed to set device color: %w", err)
+			log.Printf("set_device_color failed: %v", err)
+			return &mcp.CallToolResultFor[string]{
+				Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Error setting device color: %v", err)}},
+				IsError: true,
+			}, nil
 		}
 
 		return &mcp.CallToolResultFor[string]{
@@ -69,7 +78,11 @@ func handleSetAllColor(svc *app.Service) mcp.ToolHandlerFor[SetAllColorParams, s
 	return func(ctx context.Context, ss *mcp.ServerSession, params *mcp.CallToolParamsFor[SetAllColorParams]) (*mcp.CallToolResultFor[string], error) {
 		err := svc.SetAllDevicesColor(ctx, params.Arguments.R, params.Arguments.G, params.Arguments.B)
 		if err != nil {
-			return nil, fmt.Errorf("failed to set device color: %w", err)
+			log.Printf("set_all_color failed: %v", err)
+			return &mcp.CallToolResultFor[string]{
+				Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Error setting all device colors: %v", err)}},
+				IsError: true,
+			}, nil
 		}
 
 		return &mcp.CallToolResultFor[string]{
@@ -82,7 +95,11 @@ func handleListProfiles(svc *app.Service) mcp.ToolHandlerFor[ListProfilesParams,
 	return func(ctx context.Context, ss *mcp.ServerSession, params *mcp.CallToolParamsFor[ListProfilesParams]) (*mcp.CallToolResultFor[[]openrgb.Profile], error) {
 		profiles, err := svc.ListProfiles(ctx)
 		if err != nil {
-			return nil, err
+			log.Printf("list_profiles failed: %v", err)
+			return &mcp.CallToolResultFor[[]openrgb.Profile]{
+				Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Error listing profiles: %v", err)}},
+				IsError: true,
+			}, nil
 		}
 
 		return &mcp.CallToolResultFor[[]openrgb.Profile]{
@@ -96,7 +113,11 @@ func handleSetProfile(svc *app.Service) mcp.ToolHandlerFor[SetProfileParams, str
 	return func(ctx context.Context, ss *mcp.ServerSession, params *mcp.CallToolParamsFor[SetProfileParams]) (*mcp.CallToolResultFor[string], error) {
 		err := svc.SetProfile(ctx, params.Arguments.ProfileName)
 		if err != nil {
-			return nil, fmt.Errorf("failed to set profile: %w", err)
+			log.Printf("set_profile failed: %v", err)
+			return &mcp.CallToolResultFor[string]{
+				Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Error setting profile: %v", err)}},
+				IsError: true,
+			}, nil
 		}
 
 		return &mcp.CallToolResultFor[string]{

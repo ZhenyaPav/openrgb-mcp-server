@@ -13,8 +13,9 @@ type Config struct {
 		Version string `yaml:"version"`
 	}
 	OpenRGB struct {
-		Host string `yaml:"host"`
-		Port int    `yaml:"port"`
+		Host      string `yaml:"host"`
+		Port      int    `yaml:"port"`
+		TimeoutMS int    `yaml:"timeout_ms"`
 	}
 }
 
@@ -38,6 +39,9 @@ func LoadConfig(path string) (*Config, error) {
 
 	if cfg.OpenRGB.Port == 0 {
 		cfg.OpenRGB.Port = 6742
+	}
+	if cfg.OpenRGB.TimeoutMS == 0 {
+		cfg.OpenRGB.TimeoutMS = 2000
 	}
 
 	if cfg.Server.Name == "" {
