@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/theankitbhardwaj/openrgb-mcp-server/internal/app"
 	"github.com/theankitbhardwaj/openrgb-mcp-server/internal/mcp"
@@ -15,9 +17,14 @@ func main() {
 	log.SetOutput(os.Stderr)
 	log.SetFlags(log.LstdFlags)
 
-	cfg, err := util.LoadConfig("config/config.yaml")
+	cfgPath, err := resolveConfigPath()
 	if err != nil {
-		log.Printf("Failed to load config: %v", err)
+		log.Printf("Failed to resolve config path: %v", err)
+		os.Exit(1)
+	}
+	cfg, err := util.LoadConfig(cfgPath)
+	if err != nil {
+		log.Printf("Failed to load config (%s): %v", cfgPath, err)
 		os.Exit(1)
 	}
 
@@ -38,4 +45,24 @@ func main() {
 	if err := mcp.RunStdio(context.Background(), mcpServer); err != nil {
 		log.Printf("Server runtime error: %v", err)
 	}
+}
+
+func resolveConfigPath() (string, error) {
+	if envPath := os.Getenv("OPENRGB_MCP_CONFIG"); envPath != "" {
+		return envPath, nil
+	}
+	cwdPath := "config/config.yaml"
+	if _, err := os.Stat(cwdPath); err == nil {
+		return cwdPath, nil
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	exeDir := filepath.Dir(exe)
+	exePath := filepath.Join(exeDir, "config", "config.yaml")
+	if _, err := os.Stat(exePath); err == nil {
+		return exePath, nil
+	}
+	return cwdPath, fmt.Errorf("config not found at %s or %s", cwdPath, exePath)
 }
