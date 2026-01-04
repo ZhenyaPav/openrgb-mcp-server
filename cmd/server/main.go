@@ -17,6 +17,12 @@ func main() {
 	log.SetOutput(os.Stderr)
 	log.SetFlags(log.LstdFlags)
 
+	if wd, err := os.Getwd(); err == nil {
+		log.Printf("cwd=%s", wd)
+	} else {
+		log.Printf("cwd unavailable: %v", err)
+	}
+
 	cfgPath, err := resolveConfigPath()
 	if err != nil {
 		log.Printf("Failed to resolve config path: %v", err)
@@ -64,5 +70,9 @@ func resolveConfigPath() (string, error) {
 	if _, err := os.Stat(exePath); err == nil {
 		return exePath, nil
 	}
-	return cwdPath, fmt.Errorf("config not found at %s or %s", cwdPath, exePath)
+	exeParentPath := filepath.Join(filepath.Dir(exeDir), "config", "config.yaml")
+	if _, err := os.Stat(exeParentPath); err == nil {
+		return exeParentPath, nil
+	}
+	return cwdPath, fmt.Errorf("config not found at %s, %s, or %s", cwdPath, exePath, exeParentPath)
 }
