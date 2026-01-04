@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log"
+	"os"
 
 	"github.com/theankitbhardwaj/openrgb-mcp-server/internal/app"
 	"github.com/theankitbhardwaj/openrgb-mcp-server/internal/mcp"
@@ -11,19 +12,19 @@ import (
 )
 
 func main() {
-	fmt.Println("OpenRGB MCP server")
+	log.SetOutput(os.Stderr)
+	log.SetFlags(log.LstdFlags)
 
 	cfg, err := util.LoadConfig("config/config.yaml")
-
 	if err != nil {
-		fmt.Println(err)
+		log.Printf("Failed to load config: %v", err)
+		os.Exit(1)
 	}
 
-	client, err := openrgb.ConnectClient(cfg.OpenRGB.Host, cfg.OpenRGB.Port) // client, err
-
+	client, err := openrgb.ConnectClient(cfg.OpenRGB.Host, cfg.OpenRGB.Port)
 	if err != nil {
-		fmt.Printf("Failed to connect to OpenRGB server: %v\n", err)
-		return
+		log.Printf("Failed to connect to OpenRGB server: %v", err)
+		os.Exit(1)
 	}
 
 	defer client.Close()
@@ -35,6 +36,6 @@ func main() {
 	mcp.RegisterTools(mcpServer, svc)
 
 	if err := mcp.RunStdio(context.Background(), mcpServer); err != nil {
-		fmt.Printf("server runtime error: %v", err)
+		log.Printf("Server runtime error: %v", err)
 	}
 }
