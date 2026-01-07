@@ -3,16 +3,18 @@ package openrgb
 import "github.com/csutorasa/go-openrgb-sdk"
 
 func (c *Client) SetDeviceColor(device DeviceInfo, r, g, b int) error {
-	col := openrgb.Color{R: uint8(r), G: uint8(g), B: uint8(b)}
+	return c.withRetryErr(func(cl *openrgb.Client) error {
+		col := openrgb.Color{R: uint8(r), G: uint8(g), B: uint8(b)}
 
-	ulreq := openrgb.RGBControllerUpdateLedsRequest{
-		LedColor: make([]openrgb.Color, device.LEDCount),
-	}
-	for i := range ulreq.LedColor {
-		ulreq.LedColor[i] = col
-	}
+		ulreq := openrgb.RGBControllerUpdateLedsRequest{
+			LedColor: make([]openrgb.Color, device.LEDCount),
+		}
+		for i := range ulreq.LedColor {
+			ulreq.LedColor[i] = col
+		}
 
-	return c.c.RGBControllerUpdateLeds(uint32(device.ID), &ulreq)
+		return cl.RGBControllerUpdateLeds(uint32(device.ID), &ulreq)
+	})
 }
 
 func (c *Client) SetAllDeviceColor(r, g, b int) error {
@@ -34,7 +36,9 @@ func (c *Client) SetAllDeviceColor(r, g, b int) error {
 		for i := range ulreq.LedColor {
 			ulreq.LedColor[i] = col
 		}
-		if err := c.c.RGBControllerUpdateLeds(uint32(device.ID), &ulreq); err != nil {
+		if err := c.withRetryErr(func(cl *openrgb.Client) error {
+			return cl.RGBControllerUpdateLeds(uint32(device.ID), &ulreq)
+		}); err != nil {
 			return err
 		}
 	}
