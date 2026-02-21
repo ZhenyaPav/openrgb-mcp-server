@@ -2,25 +2,34 @@ package openrgb
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"net"
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/csutorasa/go-openrgb-sdk"
 )
 
 type Client struct {
-	c    *openrgb.Client
-	host string
-	port int
-	mu   sync.RWMutex
+	c              *openrgb.Client
+	host           string
+	port           int
+	requestTimeout time.Duration
+	mu             sync.RWMutex
 }
+
+const defaultRequestTimeout = 1500 * time.Millisecond
+
+var errRequestTimeout = errors.New("openrgb request timeout")
 
 func ConnectClient(host string, port int) (*Client, error) {
 	wrapped := &Client{
-		host: host,
-		port: port,
+		host:           host,
+		port:           port,
+		requestTimeout: defaultRequestTimeout,
 	}
 	if err := wrapped.reconnect(); err != nil {
 		return nil, err
@@ -69,7 +78,7 @@ func (c *Client) withRetryValue(fn func(*openrgb.Client) (any, error)) (any, err
 		}
 		cl = c.client()
 	}
-	val, err := fn(cl)
+	val, err := c.callWithTimeout(cl, fn)
 	if err == nil {
 		return val, nil
 	}
@@ -79,12 +88,18 @@ func (c *Client) withRetryValue(fn func(*openrgb.Client) (any, error)) (any, err
 	if err := c.reconnect(); err != nil {
 		return nil, err
 	}
-	return fn(c.client())
+	return c.callWithTimeout(c.client(), fn)
 }
 
 func isConnError(err error) bool {
 	if err == nil {
 		return false
+	}
+	if errors.Is(err, errRequestTimeout) {
+		return true
+	}
+	if errors.Is(err, io.EOF) {
+		return true
 	}
 	if errors.Is(err, net.ErrClosed) {
 		return true
@@ -95,10 +110,47 @@ func isConnError(err error) bool {
 	if strings.Contains(strings.ToLower(err.Error()), "broken pipe") {
 		return true
 	}
+	if strings.Contains(strings.ToLower(err.Error()), "connection reset by peer") {
+		return true
+	}
+	if strings.Contains(strings.ToLower(err.Error()), "use of closed network connection") {
+		return true
+	}
+	if strings.Contains(strings.ToLower(err.Error()), "read/write on closed pipe") {
+		return true
+	}
 	if opErr := new(net.OpError); errors.As(err, &opErr) {
 		if errors.Is(opErr.Err, syscall.EPIPE) || errors.Is(opErr.Err, syscall.ECONNRESET) {
 			return true
 		}
 	}
 	return false
+}
+
+type openrgbCallResult struct {
+	val any
+	err error
+}
+
+func (c *Client) callWithTimeout(cl *openrgb.Client, fn func(*openrgb.Client) (any, error)) (any, error) {
+	done := make(chan openrgbCallResult, 1)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				done <- openrgbCallResult{err: fmt.Errorf("openrgb client panic: %v", r)}
+			}
+		}()
+		val, err := fn(cl)
+		done <- openrgbCallResult{val: val, err: err}
+	}()
+
+	timer := time.NewTimer(c.requestTimeout)
+	defer timer.Stop()
+
+	select {
+	case result := <-done:
+		return result.val, result.err
+	case <-timer.C:
+		return nil, errRequestTimeout
+	}
 }
